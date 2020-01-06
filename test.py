@@ -22,7 +22,6 @@ import numpy as np
 
 def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size):
     model.eval()
-
     # Get dataloader
     dataset = ListDataset(path, img_size=img_size, augment=False, multiscale=False)
     dataloader = torch.utils.data.DataLoader(
@@ -59,6 +58,7 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
     try:
         true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
         precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
+        #import pdb;pdb.set_trace()
     except:
         precision, recall, AP, f1, ap_class = np.zeros(2),np.zeros(2),np.zeros(2),np.zeros(2),np.array([0,1])
         #import pdb; pdb.set_trace()
@@ -68,11 +68,11 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=8, help="size of each image batch")
+    parser.add_argument("--batch_size", type=int, default=1, help="size of each image batch")
     parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
     parser.add_argument("--data_config", type=str, default="config/custom.data", help="path to data config file")
-    parser.add_argument("--weights_path", type=str, default="checkpoints/yolov3_ckpt_5.pth", help="path to weights file")
-    parser.add_argument("--class_path", type=str, default="data/custom/classes.names", help="path to class label file")
+    parser.add_argument("--weights_path", type=str, default="../results/personnel-records/1960/models/yolov3_ckpt_10.pth", help="path to weights file")
+    parser.add_argument("--class_path", type=str, default="../results/personnel-records/1960/object_detection/classes.names", help="path to class label file")
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
@@ -94,6 +94,8 @@ if __name__ == "__main__":
         model.load_darknet_weights(opt.weights_path)
     else:
         # Load checkpoint weights
+        print(opt.weights_path)
+        #import pdb; pdb.set_trace()
         model.load_state_dict(torch.load(opt.weights_path))
 
     print("Compute mAP...")
@@ -105,9 +107,8 @@ if __name__ == "__main__":
         conf_thres=opt.conf_thres,
         nms_thres=opt.nms_thres,
         img_size=opt.img_size,
-        batch_size=8,
+        batch_size=opt.batch_size,
     )
-
     print("Average Precisions:")
     for i, c in enumerate(ap_class):
         print(f"+ Class '{c}' ({class_names[c]}) - AP: {AP[i]}")
