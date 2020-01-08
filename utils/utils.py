@@ -230,7 +230,7 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
     return iou
 
 
-def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, detect=False):
+def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, prob=False):
     """
     Removes detections with lower object confidence score than 'conf_thres' and performs
     Non-Maximum Suppression to further filter detections.
@@ -239,7 +239,8 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, detect=False)
     """
     # From (center x, center y, width, height) to (x1, y1, x2, y2)
     prediction[..., :4] = xywh2xyxy(prediction[..., :4])
-    output = [None for _ in range(len(prediction))]
+    output1 = [None for _ in range(len(prediction))]
+    output2 = [None for _ in range(len(prediction))]
     for image_i, image_pred in enumerate(prediction):
         # Filter out confidence scores below threshold
         image_pred = image_pred[image_pred[:, 4] >= conf_thres]
@@ -259,6 +260,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, detect=False)
         detections = torch.cat((image_pred[:, :5], class_confs.float(), class_preds.float()), 1)
         # Perform non-maximum suppression
         keep_boxes = []
+        keep_boxes_prob = []
         while detections.size(0):
             large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
             label_match = detections[0, -1] == detections[:, -1]
@@ -267,16 +269,21 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, detect=False)
             weights = detections[invalid, 4:5]
             # Merge overlapping bboxes by order of confidence
             detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
-            #image_pred[0, :4] = (weights * image_pred[invalid, :4]).sum(0) / weights.sum()
             keep_boxes += [detections[0]]
             detections = detections[~invalid]
+            if prob:
+                image_pred[0, :4] = (weights * image_pred[invalid, :4]).sum(0) / weights.sum()
+                image_pred[0, 5:] = torch.exp((weights * torch.log(image_pred[invalid, 5:])).sum(0) / weights.sum())
+                keep_boxes_prob += [image_pred[0]]
+                image_pred = image_pred[~invalid]
 
         if keep_boxes:
-            output[image_i] = torch.stack(keep_boxes)
-    if detect:
-        return output,image_pred
+            output1[image_i] = torch.stack(keep_boxes)
+            output2[image_i] = torch.stack(keep_boxes_prob)
+    if prob:
+        return output1,output2
     else:
-        return output
+        return output1
 
 
 def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
