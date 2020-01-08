@@ -24,16 +24,16 @@ import torch.optim as optim
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=100, help="number of epochs")
-    parser.add_argument("--batch_size", type=int, default=8, help="size of each image batch")
+    parser.add_argument("--epochs", type=int, default=21, help="number of epochs")
+    parser.add_argument("--batch_size", type=int, default=6, help="size of each image batch")
     parser.add_argument("--gradient_accumulations", type=int, default=2, help="number of gradient accums before step")
-    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--data_config", type=str, default="config/coco.data", help="path to data config file")
+    parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
+    parser.add_argument("--data_config", type=str, default="config/custom.data", help="path to data config file")
     parser.add_argument("--pretrained_weights", type=str, help="if specified starts from checkpoint model")
-    parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
-    parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval between saving model weights")
-    parser.add_argument("--evaluation_interval", type=int, default=1, help="interval evaluations on validation set")
+    parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
+    parser.add_argument("--img_size", type=int, default=(1920,256), help="size of each image dimension")
+    parser.add_argument("--checkpoint_interval", type=int, default=5, help="interval between saving model weights")
+    parser.add_argument("--evaluation_interval", type=int, default=5, help="interval evaluations on validation set")
     parser.add_argument("--compute_map", default=False, help="if True computes mAP every tenth batch")
     parser.add_argument("--multiscale_training", default=True, help="allow for multi-scale training")
     opt = parser.parse_args()
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     class_names = load_classes(data_config["names"])
 
     # Initiate model
-    model = Darknet(opt.model_def).to(device)
+    model = Darknet(opt.model_def,img_size=opt.img_size).to(device)
     model.apply(weights_init_normal)
 
     # If specified we start from checkpoint
@@ -64,7 +64,7 @@ if __name__ == "__main__":
             model.load_darknet_weights(opt.pretrained_weights)
 
     # Get dataloader
-    dataset = ListDataset(train_path, augment=True, multiscale=opt.multiscale_training)
+    dataset = ListDataset(train_path, img_size=opt.img_size, augment=False, multiscale=opt.multiscale_training)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=opt.batch_size,
@@ -73,11 +73,12 @@ if __name__ == "__main__":
         pin_memory=True,
         collate_fn=dataset.collate_fn,
     )
-
+    #import pdb;pdb.set_trace()
     optimizer = torch.optim.Adam(model.parameters())
 
     metrics = [
-        "grid_size",
+        "grid_size_h",
+        "grid_size_w",
         "loss",
         "x",
         "y",
@@ -92,36 +93,39 @@ if __name__ == "__main__":
         "conf_obj",
         "conf_noobj",
     ]
-
     for epoch in range(opt.epochs):
         model.train()
         start_time = time.time()
+        #import pdb;pdb.set_trace()
         for batch_i, (_, imgs, targets) in enumerate(dataloader):
             batches_done = len(dataloader) * epoch + batch_i
 
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
-
             loss, outputs = model(imgs, targets)
+            #from torchviz import make_dot
+            #dot = make_dot(model(imgs), params=dict(model.named_parameters()))
+            #dot.format = 'png'
+            #dot.render('viz/model_structure')
             loss.backward()
 
             if batches_done % opt.gradient_accumulations:
                 # Accumulates gradient before each step
                 optimizer.step()
                 optimizer.zero_grad()
-
             # ----------------
             #   Log progress
             # ----------------
-
             log_str = "\n---- [Epoch %d/%d, Batch %d/%d] ----\n" % (epoch, opt.epochs, batch_i, len(dataloader))
 
             metric_table = [["Metrics", *[f"YOLO Layer {i}" for i in range(len(model.yolo_layers))]]]
 
             # Log metrics at each YOLO layer
             for i, metric in enumerate(metrics):
+                #import pdb;pdb.set_trace()
                 formats = {m: "%.6f" for m in metrics}
-                formats["grid_size"] = "%2d"
+                formats["grid_size_h"] = "%2d"
+                formats["grid_size_w"] = "%2d"
                 formats["cls_acc"] = "%.2f%%"
                 row_metrics = [formats[metric] % yolo.metrics.get(metric, 0) for yolo in model.yolo_layers]
                 metric_table += [[metric, *row_metrics]]
@@ -130,7 +134,7 @@ if __name__ == "__main__":
                 tensorboard_log = []
                 for j, yolo in enumerate(model.yolo_layers):
                     for name, metric in yolo.metrics.items():
-                        if name != "grid_size":
+                        if name != "grid_size_h" or name != "grid_size_w":
                             tensorboard_log += [(f"{name}_{j+1}", metric)]
                 tensorboard_log += [("loss", loss.item())]
                 logger.list_of_scalars_summary(tensorboard_log, batches_done)

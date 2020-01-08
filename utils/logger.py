@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-
 class Logger(object):
     def __init__(self, log_dir):
         """Create a summary writer logging to log_dir."""
