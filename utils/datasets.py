@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 import torch
 import torch.nn.functional as F
+import pandas as pd
 
 from utils.augmentations import horisontal_flip
 from torch.utils.data import Dataset
@@ -36,6 +37,32 @@ def random_resize(images, min_size=288, max_size=448):
     images = F.interpolate(images, size=new_size, mode="nearest")
     return images
 '''
+
+class DetectionResults():
+    def __init__(self, datas = None, filenames = None, classes = [], outputpath = ''):
+        self.filenames = filenames
+        self.datas = datas  # [ [ [x1,y1,x2,y2,confidence, number_of_classes] ] ]
+        self.classes = classes
+        self.outputpath = outputpath
+        self.header = ['x1','y1','x2','y2','confidence'] + classes
+
+    def to_df(self,data):
+        return pd.DataFrame(data.numpy(), columns=self.header)
+
+    def to_csvs(self):
+        for i,data in enumerate(self.datas):
+            filename = self.filenames[i].split('/')[-1].split('.')[0] + '.csv'
+            self.to_df(data).to_csv(os.path.join(self.outputpath,filename),index=False)
+            print("data saved to "+os.path.join(self.outputpath,filename))
+
+    def from_csvs(self):
+        pass
+
+    def to_jsons(self):
+        pass
+
+    def from_jsons(self):
+        pass
 
 class ImageFolder(Dataset):
     def __init__(self, folder_path, img_size=416):
