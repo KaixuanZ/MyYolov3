@@ -275,7 +275,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, prob=False):
                 #weighted average of bbox
                 image_pred[0, :4] = (weights * image_pred[invalid, :4]).sum(0) / weights.sum()
                 # weighted average of prob
-                image_pred[0, 5:] = torch.exp((weights * torch.log(image_pred[invalid, 5:])).sum(0) / weights.sum())
+                image_pred[0, 5:] = torch.exp((weights * torch.log(image_pred[invalid, 5:]+1e-30)).sum(0) / weights.sum())
                 keep_boxes_prob += [image_pred[0]]
                 image_pred = image_pred[~invalid]
 
