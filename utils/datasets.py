@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 import pandas as pd
 
-from utils.augmentations import horisontal_flip
+from utils.augmentations import *
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
@@ -93,7 +93,6 @@ class ListDataset(Dataset):
             path.replace("images", "labels").replace(".png", ".txt").replace(".jpg", ".txt")
             for path in self.img_files
         ]
-        print(self.img_files)
         self.img_size = img_size
         self.max_objects = 100
         self.augment = augment
@@ -158,15 +157,21 @@ class ListDataset(Dataset):
 
         # Apply augmentations
         if self.augment:
+            # we can save data in this class but if the training data is too much we cannot remember them in memory
+            # add noise
+
+            img, targets = rotate(img, targets, 1)
             if np.random.random() < 0.5:
-                img, targets = horisontal_flip(img, targets)
-        #print(img.shape)
-        #print(targets.shape)
-        #print(label_path)
-        #print(targets)
+                # random small affine transform
+                pass
+            else:
+                # random rotation (small degree)
+                pass
+
         return img_path, img, targets
 
     def collate_fn(self, batch):
+        #collate list of samples into batches
         paths, imgs, targets = list(zip(*batch))
         # Remove empty placeholder targets
         targets = [boxes for boxes in targets if boxes is not None]

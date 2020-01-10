@@ -90,3 +90,17 @@ def CropRect(img, rect):
     if img is not None:
         warped = cv2.warpPerspective(img, M, (width+1, height+1))
     return warped, M
+
+def xywhs2pts(xywhs):
+    '''
+    :param xywhs: an array of size N*4
+    :return: pts with size 4N*2
+    '''
+    return pts
+
+def pts2xywhs(pts):
+    '''
+    :param pts:  an array with size 4N*2
+    :return:  an array with size N*4
+    '''
+    return xywhs

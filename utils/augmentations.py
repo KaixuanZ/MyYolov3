@@ -36,12 +36,17 @@ def rotate(img, targets, theta):
     import pdb;
     pdb.set_trace()
 
-    xywh = targets[:,2:]
-    # transform xywh into pts
-    # rotate
-    # pts to rect (xywh) and put it to targets[:,2:]
+    #rotate the targets
+    xywhs = targets[:,1:]
+    # transform xywhr into pts and rotate
+    pts = xywhs2pts(xywhs)
+    pts = PtsOnDstImg(pts, rot_mat)
+    # pts to rect (xywh) and put it back
+    xywhs = torch.from_numpy(pts2xywhs(pts))
+    rotated_targets = targets
+    rotated_targets[:,1:] = xywhs
 
-    return rotated_img, targets
+    return rotated_img, rotated_targets
 
 def affine(image, targets):
     return image, targets
