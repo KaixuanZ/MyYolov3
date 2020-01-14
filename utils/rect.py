@@ -1,7 +1,6 @@
 #includes functions related with Rect computation
 
 import numpy as np
-import cv2
 from shapely.geometry import Polygon
 
 def AreaOfOverlap(rect1,rect2,rect=True):
@@ -31,11 +30,20 @@ def RectOnDstImg(rect, M_src2dst,flag_box=False):
         pts=PtsOnDstImg(cv2.boxPoints(tuple(rect)), M_src2dst)
     return cv2.minAreaRect(pts)
 
-def PtsOnDstImg(pts, M_src2dst, orderPts=True):
-    #Given pts on src img, and transformation M from src to dst, return the pts on dst img.
-
+def PtsOnDstImg(pts, M_src2dst, orderPts=False, inverse_M=False):
+    '''
+    Given pts on src img, and transformation M from src to dst, return the pts on dst img.
+    :param pts: [[x,y]]
+    :param orderPts: order pts by tl, tr, br, bl
+    :param M_src2dst: suppose to be src2dst, but can be dst2src and set inverse be True
+    :return:
+    '''
     pts = np.array(pts)
     pts = np.concatenate((pts, np.ones([pts.shape[0], 1])), axis=1)
+    if M_src2dst.shape[0] != 3:
+        M_src2dst = np.concatenate((M_src2dst, np.array([[0,0,1]])), axis=0)
+    if inverse_M:
+        M_src2dst = np.linalg.inv(M_src2dst)
     # pts on the dst img
     pts = np.dot(M_src2dst, pts.T).T
     pts = pts / pts[:, 2, None]
@@ -90,17 +98,3 @@ def CropRect(img, rect):
     if img is not None:
         warped = cv2.warpPerspective(img, M, (width+1, height+1))
     return warped, M
-
-def xywhs2pts(xywhs):
-    '''
-    :param xywhs: an array of size N*4
-    :return: pts with size 4N*2
-    '''
-    return pts
-
-def pts2xywhs(pts):
-    '''
-    :param pts:  an array with size 4N*2
-    :return:  an array with size N*4
-    '''
-    return xywhs
