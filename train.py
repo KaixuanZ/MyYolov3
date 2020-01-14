@@ -5,6 +5,7 @@ from utils.logger import *
 from utils.utils import *
 from utils.datasets import *
 from utils.parse_config import *
+#from utils.rect import *
 from test import evaluate
 
 from terminaltables import AsciiTable
@@ -14,6 +15,7 @@ import sys
 import time
 import datetime
 import argparse
+import cv2
 
 import torch
 from torch.utils.data import DataLoader
@@ -24,7 +26,7 @@ import torch.optim as optim
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=21, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=101, help="number of epochs")
     parser.add_argument("--batch_size", type=int, default=6, help="size of each image batch")
     parser.add_argument("--gradient_accumulations", type=int, default=2, help="number of gradient accums before step")
     parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
@@ -36,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument("--evaluation_interval", type=int, default=5, help="interval evaluations on validation set")
     parser.add_argument("--compute_map", default=False, help="if True computes mAP every tenth batch")
     parser.add_argument("--multiscale_training", default=True, help="allow for multi-scale training")
+    parser.add_argument("--checkpoint_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint", help="path to save checkpoints")
     opt = parser.parse_args()
     print(opt)
 
@@ -44,7 +47,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     os.makedirs("output", exist_ok=True)
-    os.makedirs("checkpoints", exist_ok=True)
+    os.makedirs(opt.checkpoint_path, exist_ok=True)
 
     # Get data configuration
     data_config = parse_data_config(opt.data_config)
@@ -98,6 +101,7 @@ if __name__ == "__main__":
         start_time = time.time()
         #import pdb;pdb.set_trace()
         for batch_i, (_, imgs, targets) in enumerate(dataloader):
+            #import pdb;pdb.set_trace()
             batches_done = len(dataloader) * epoch + batch_i
 
             imgs = Variable(imgs.to(device))
@@ -179,4 +183,4 @@ if __name__ == "__main__":
             print(f"---- mAP {AP.mean()}")
 
         if epoch % opt.checkpoint_interval == 0:
-            torch.save(model.state_dict(), f"checkpoints/yolov3_ckpt_%d.pth" % epoch)
+            torch.save(model.state_dict(), os.path.join(opt.checkpoint_path,"yolov3_ckpt_%d.pth" % epoch))
