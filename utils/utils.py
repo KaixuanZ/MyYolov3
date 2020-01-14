@@ -196,7 +196,7 @@ def bbox_wh_iou(wh1, wh2):
     return inter_area / union_area
 
 
-def bbox_iou(box1, box2, x1y1x2y2=True):
+def bbox_iou(box1, box2, x1y1x2y2=True, default=False):
     """
     Returns the IoU of two bounding boxes
     """
@@ -216,7 +216,7 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
     inter_rect_y1 = torch.max(b1_y1, b2_y1)
     inter_rect_x2 = torch.min(b1_x2, b2_x2)
     inter_rect_y2 = torch.min(b1_y2, b2_y2)
-    # Intersection area
+    # Intersection area, here may have overflow and cause error
     inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(
         inter_rect_y2 - inter_rect_y1 + 1, min=0
     )
@@ -225,7 +225,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
     b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
 
     iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
-
+    if default:
+        iou[0]=1
     return iou
 
 
@@ -244,9 +245,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, prob=False):
         # Filter out confidence scores below threshold
         image_pred = image_pred[image_pred[:, 4] >= conf_thres]
         # remove inf & -inf
-        idx = torch.sum(image_pred == float('inf'), [i for i in range(1, image_pred.dim())]) == 0
-        image_pred = image_pred[idx]
-        idx = torch.sum(image_pred == -float('inf'), [i for i in range(1, image_pred.dim())]) == 0
+        idx = torch.sum(image_pred == float('inf'), 1) == 0
         image_pred = image_pred[idx]
         # If none are remaining => process next image
         if not image_pred.size(0):
@@ -261,13 +260,14 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, prob=False):
         keep_boxes = []
         keep_boxes_prob = []
         while detections.size(0):
-            large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
+            large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4], default=True) > nms_thres
             label_match = detections[0, -1] == detections[:, -1]
             # Indices of boxes with lower confidence scores, large IOUs and matching labels
             invalid = large_overlap & label_match
             weights = detections[invalid, 4:5]
             # Merge overlapping bboxes by order of confidence
             detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
+
             keep_boxes += [detections[0]]
             detections = detections[~invalid]
             if prob:
@@ -280,7 +280,9 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, prob=False):
 
         if keep_boxes:
             output1[image_i] = torch.stack(keep_boxes)
-            output2[image_i] = torch.stack(keep_boxes_prob)
+        if prob:
+            if keep_boxes_prob:
+                output2[image_i] = torch.stack(keep_boxes_prob)
     if prob:
         return output1,output2
     else:
