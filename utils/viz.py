@@ -22,7 +22,7 @@ def plot_bbox(img, targets, filename = 'tmp', format = 'png'):
     '''
 
     img_new = img
-    if np.max(img_new) <= 1:
+    if np.max(img_new) <= 1.5:
         img_new *= 255
     if len(img_new.shape) == 2 or img_new.shape[-1] == 1:
         img_new = cv2.cvtColor(img_new,cv2.COLOR_GRAY2BGR)
@@ -43,8 +43,8 @@ def plot_bbox(img, targets, filename = 'tmp', format = 'png'):
                    [int(x+w/2),int(y+h/2)],
                    [int(x-w/2),int(y+h/2)]]
             boxes.append(box)
-            print(x,y,w,h)
-            print(box)
+            #print(x,y,w,h)
+            #print(box)
         boxes = np.array(boxes)
         cv2.drawContours(img_new, boxes, -1, (0, 0, 255), 2)
     # Save generated image with detections
