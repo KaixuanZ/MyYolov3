@@ -35,6 +35,8 @@ def rotate(img, targets, theta):
 
     # rotate img with the new bounds and translated rotation imgrix
     rotated_img = cv2.warpAffine(img, rot_mat, (bound_w, bound_h))
+    if len(rotated_img.shape)<3:
+        rotated_img = np.expand_dims(rotated_img,axis=2)
     r_h, r_w = rotated_img.shape[:2]
 
     # rotate the targets
@@ -58,5 +60,45 @@ def rotate(img, targets, theta):
 
     return rotated_img, rotated_targets
 
-def affine(image, targets):
-    return image, targets
+def perspective(img, targets, t):
+    '''
+    :param img:
+    :param targets:
+    :param t: transform [[0,0], [w,h]] into [[0,0], [w,h + w*t]] in (x,y) format
+    :return:
+    '''
+    h, w = img.shape[0], img.shape[1]
+    if t>0:
+        input_pts = np.float32([[0, 0], [0, h], [w, 0], [w, h]])
+        output_pts = np.float32([[0, 0], [0, h], [w, t*w], [w, h + w*t]])
+    else:
+        t=abs(t)
+        input_pts = np.float32([[0, 0], [0, h], [w, 0], [w, h]])
+        output_pts = np.float32([[0, w*t], [0, h + w*t], [w, 0], [w, h]])
+    # Compute the perspective transform M
+    M = cv2.getPerspectiveTransform(input_pts, output_pts)
+
+    # Apply the perspective transformation to the image
+    p_w, p_h = w, int( h + abs(t) * w )
+    warped_img = cv2.warpPerspective(img, M, (p_w, p_h), flags=cv2.INTER_LINEAR)
+    if len(warped_img.shape)<3:
+        warped_img = np.expand_dims(warped_img,axis=2)
+
+    # warp the targets
+    t_x, t_y = targets[:, 2].numpy(), targets[:, 3].numpy()
+    t_h = targets[:, 5] * (1 +  t)
+    # warp xy
+    xy = PtsOnDstImg(np.column_stack((t_x * w, t_y * h)), M)
+
+    #new x,y,h
+    warped_targets = targets.clone()
+    warped_targets[:, 2:4] = torch.from_numpy(xy)
+    warped_targets[:, 2] /= p_w
+    warped_targets[:, 3] /= p_h
+    warped_targets[:, 5] = t_h
+
+    # viz
+    #plot_bbox(img, targets, 'tmp1')
+    #plot_bbox(warped_img, warped_targets, 'tmp2')
+
+    return warped_img, warped_targets
