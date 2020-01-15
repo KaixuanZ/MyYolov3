@@ -116,13 +116,14 @@ class ListDataset(Dataset):
         # Apply augmentations
         if self.augment:
             # we can save data in this class but if the training data is too much we cannot remember them in memory
-            if np.random.random() < 0.5:
+            p = np.random.random()
+            if p <= 0.33:
                 # random small perspective transform
                 t = 0.2*(np.random.random()-0.5)
                 img, targets = perspective(img.permute(1, 2, 0).numpy(), targets, t)
-            else:
+            elif  p <= 0.66:
                 # random rotation (small degree)
-                theta = 10 * (np.random.random()-0.5)
+                theta = 5 * (np.random.random()-0.5)
                 img, targets = rotate(img.permute(1,2,0).numpy(), targets, theta)
             # add noise
             img = transforms.ToTensor()(img)

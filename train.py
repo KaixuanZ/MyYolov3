@@ -26,7 +26,7 @@ import torch.optim as optim
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=101, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=151, help="number of epochs")
     parser.add_argument("--batch_size", type=int, default=6, help="size of each image batch")
     parser.add_argument("--gradient_accumulations", type=int, default=2, help="number of gradient accums before step")
     parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument("--evaluation_interval", type=int, default=5, help="interval evaluations on validation set")
     parser.add_argument("--compute_map", default=False, help="if True computes mAP every tenth batch")
     parser.add_argument("--multiscale_training", default=False, help="allow for multi-scale training")
+    parser.add_argument("--augment", default=True, help="allow for data augmentation during training")
     parser.add_argument("--checkpoint_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint", help="path to save checkpoints")
     opt = parser.parse_args()
     print(opt)
@@ -67,7 +68,7 @@ if __name__ == "__main__":
             model.load_darknet_weights(opt.pretrained_weights)
 
     # Get dataloader
-    dataset = ListDataset(train_path, img_size=opt.img_size, augment=False, multiscale=opt.multiscale_training)
+    dataset = ListDataset(train_path, img_size=opt.img_size, augment=opt.augment, multiscale=opt.multiscale_training)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=opt.batch_size,
