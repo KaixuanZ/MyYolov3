@@ -1,1 +1,1 @@
-data/custom/images/train.jpg
+data/custom/images/pr1960_0414_1_3.png

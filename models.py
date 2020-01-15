@@ -66,11 +66,13 @@ def create_modules(module_defs):
             modules.add_module(f"shortcut_{module_i}", EmptyLayer())
 
         elif module_def["type"] == "yolo":
+
             anchor_idxs = [int(x) for x in module_def["mask"].split(",")]
             # Extract anchors
             anchors = [int(x) for x in module_def["anchors"].split(",")]
             anchors = [(anchors[i], anchors[i + 1]) for i in range(0, len(anchors), 2)]
             anchors = [anchors[i] for i in anchor_idxs]
+            
             num_classes = int(module_def["classes"])
             img_size = int(hyperparams["height"])
             # Define detection layer
@@ -124,11 +126,11 @@ class YOLOLayer(nn.Module):
         self.grid_size = grid_size
         g = self.grid_size
         FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-        self.stride = self.img_dim / self.grid_size
+        self.stride = [self.img_dim[0]/g[0], self.img_dim[1]/g[1] ]
         # Calculate offsets for each grid
-        self.grid_x = torch.arange(g).repeat(g, 1).view([1, 1, g, g]).type(FloatTensor)
-        self.grid_y = torch.arange(g).repeat(g, 1).t().view([1, 1, g, g]).type(FloatTensor)
-        self.scaled_anchors = FloatTensor([(a_w / self.stride, a_h / self.stride) for a_w, a_h in self.anchors])
+        self.grid_x = torch.arange(g[1]).repeat(g[0], 1).view([1, 1, g[0], g[1]]).type(FloatTensor)
+        self.grid_y = torch.arange(g[0]).repeat(g[1], 1).t().view([1, 1, g[0], g[1]]).type(FloatTensor)
+        self.scaled_anchors = FloatTensor([(a_w / self.stride[1], a_h / self.stride[0]) for a_w, a_h in self.anchors])
         self.anchor_w = self.scaled_anchors[:, 0:1].view((1, self.num_anchors, 1, 1))
         self.anchor_h = self.scaled_anchors[:, 1:2].view((1, self.num_anchors, 1, 1))
 
@@ -141,10 +143,9 @@ class YOLOLayer(nn.Module):
 
         self.img_dim = img_dim
         num_samples = x.size(0)
-        grid_size = x.size(2)
-
+        grid_size = [x.size(2),x.size(3)]
         prediction = (
-            x.view(num_samples, self.num_anchors, self.num_classes + 5, grid_size, grid_size)
+            x.view(num_samples, self.num_anchors, self.num_classes + 5, x.size(2), x.size(3))
             .permute(0, 1, 3, 4, 2)
             .contiguous()
         )
@@ -160,23 +161,25 @@ class YOLOLayer(nn.Module):
         # If grid size does not match current we compute new offsets
         if grid_size != self.grid_size:
             self.compute_grid_offsets(grid_size, cuda=x.is_cuda)
-
         # Add offset and scale with anchors
         pred_boxes = FloatTensor(prediction[..., :4].shape)
-        pred_boxes[..., 0] = x.data + self.grid_x
-        pred_boxes[..., 1] = y.data + self.grid_y
-        pred_boxes[..., 2] = torch.exp(w.data) * self.anchor_w
-        pred_boxes[..., 3] = torch.exp(h.data) * self.anchor_h
-
+        pred_boxes[..., 0] = (x.data + self.grid_x) * self.stride[1]
+        pred_boxes[..., 1] = (y.data + self.grid_y) * self.stride[0]
+        pred_boxes[..., 2] = torch.exp(w.data) * self.anchor_w * self.stride[1]
+        pred_boxes[..., 3] = torch.exp(h.data) * self.anchor_h * self.stride[0]
+        #import pdb;pdb.set_trace()
         output = torch.cat(
             (
-                pred_boxes.view(num_samples, -1, 4) * self.stride,
+                pred_boxes.view(num_samples, -1, 4),
                 pred_conf.view(num_samples, -1, 1),
                 pred_cls.view(num_samples, -1, self.num_classes),
             ),
             -1,
         )
-
+        pred_boxes[..., 0] /= self.stride[1]
+        pred_boxes[..., 1] /= self.stride[0]
+        pred_boxes[..., 2] /= self.stride[1]
+        pred_boxes[..., 3] /= self.stride[0]
         if targets is None:
             return output, 0
         else:
@@ -225,7 +228,8 @@ class YOLOLayer(nn.Module):
                 "precision": to_cpu(precision).item(),
                 "conf_obj": to_cpu(conf_obj).item(),
                 "conf_noobj": to_cpu(conf_noobj).item(),
-                "grid_size": grid_size,
+                "grid_size_h": grid_size[0],
+                "grid_size_w":grid_size[1],
             }
 
             return output, total_loss
@@ -244,9 +248,10 @@ class Darknet(nn.Module):
         self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
 
     def forward(self, x, targets=None):
-        img_dim = x.shape[2]
+        img_dim = x.shape[2:]
         loss = 0
         layer_outputs, yolo_outputs = [], []
+        
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
             if module_def["type"] in ["convolutional", "upsample", "maxpool"]:
                 x = module(x)
@@ -256,6 +261,7 @@ class Darknet(nn.Module):
                 layer_i = int(module_def["from"])
                 x = layer_outputs[-1] + layer_outputs[layer_i]
             elif module_def["type"] == "yolo":
+                
                 x, layer_loss = module[0](x, targets, img_dim)
                 loss += layer_loss
                 yolo_outputs.append(x)

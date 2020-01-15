@@ -18,7 +18,7 @@ from torchvision import datasets
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.optim as optim
-
+import numpy as np
 
 def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size):
     model.eval()
@@ -33,26 +33,36 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
     labels = []
     sample_metrics = []  # List of tuples (TP, confs, pred)
+    print("start evaluation")
     for batch_i, (_, imgs, targets) in enumerate(tqdm.tqdm(dataloader, desc="Detecting objects")):
 
         # Extract labels
         labels += targets[:, 1].tolist()
-        # Rescale target
+        # Rescale targets (x,y,w,h)
+        #import pdb; pdb.set_trace()
         targets[:, 2:] = xywh2xyxy(targets[:, 2:])
-        targets[:, 2:] *= img_size
+        targets[:, 2] *= img_size[1]
+        targets[:, 3] *= img_size[0]
+        targets[:, 4] *= img_size[1]
+        targets[:, 5] *= img_size[0]
 
         imgs = Variable(imgs.type(Tensor), requires_grad=False)
-
+        print("start NMS")
+        #import pdb; pdb.set_trace()
         with torch.no_grad():
             outputs = model(imgs)
             outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres)
-
+        print("end NMS")
         sample_metrics += get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
 
     # Concatenate sample statistics
-    true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-    precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
-
+    try:
+        true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
+        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
+    except:
+        precision, recall, AP, f1, ap_class = np.zeros(2),np.zeros(2),np.zeros(2),np.zeros(2),np.array([0,1])
+        #import pdb; pdb.set_trace()
+    print("end evaluation")
     return precision, recall, AP, f1, ap_class
 
 

@@ -35,6 +35,11 @@ def weights_init_normal(m):
 
 def rescale_boxes(boxes, current_dim, original_shape):
     """ Rescales bounding boxes to the original shape """
+    boxes[:,0]*=original_shape[1]/current_dim[1]
+    boxes[:,1]*=original_shape[0]/current_dim[0]
+    boxes[:,2]*=original_shape[1]/current_dim[1]
+    boxes[:,3]*=original_shape[0]/current_dim[0]
+    '''
     orig_h, orig_w = original_shape
     # The amount of padding that was added
     pad_x = max(orig_h - orig_w, 0) * (current_dim / max(original_shape))
@@ -47,6 +52,7 @@ def rescale_boxes(boxes, current_dim, original_shape):
     boxes[:, 1] = ((boxes[:, 1] - pad_y // 2) / unpad_h) * orig_h
     boxes[:, 2] = ((boxes[:, 2] - pad_x // 2) / unpad_w) * orig_w
     boxes[:, 3] = ((boxes[:, 3] - pad_y // 2) / unpad_h) * orig_h
+    '''
     return boxes
 
 
@@ -230,7 +236,6 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     Returns detections with shape:
         (x1, y1, x2, y2, object_conf, class_score, class_pred)
     """
-
     # From (center x, center y, width, height) to (x1, y1, x2, y2)
     prediction[..., :4] = xywh2xyxy(prediction[..., :4])
     output = [None for _ in range(len(prediction))]
@@ -248,7 +253,15 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
         detections = torch.cat((image_pred[:, :5], class_confs.float(), class_preds.float()), 1)
         # Perform non-maximum suppression
         keep_boxes = []
+        print(len(detections),detections.size(0))
+
+        pre=-1
         while detections.size(0):
+            if pre==detections.size(0):
+                #import pdb; pdb.set_trace()
+                break
+            pre=detections.size(0)
+            
             large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
             label_match = detections[0, -1] == detections[:, -1]
             # Indices of boxes with lower confidence scores, large IOUs and matching labels
@@ -258,6 +271,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
             detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
             keep_boxes += [detections[0]]
             detections = detections[~invalid]
+        #import pdb; pdb.set_trace()
         if keep_boxes:
             output[image_i] = torch.stack(keep_boxes)
 
@@ -272,21 +286,26 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
     nB = pred_boxes.size(0)
     nA = pred_boxes.size(1)
     nC = pred_cls.size(-1)
-    nG = pred_boxes.size(2)
-
+    nG = [pred_boxes.size(2),pred_boxes.size(3)]	#grid_size
+    #import pdb;pdb.set_trace()
     # Output tensors
-    obj_mask = ByteTensor(nB, nA, nG, nG).fill_(0)
-    noobj_mask = ByteTensor(nB, nA, nG, nG).fill_(1)
-    class_mask = FloatTensor(nB, nA, nG, nG).fill_(0)
-    iou_scores = FloatTensor(nB, nA, nG, nG).fill_(0)
-    tx = FloatTensor(nB, nA, nG, nG).fill_(0)
-    ty = FloatTensor(nB, nA, nG, nG).fill_(0)
-    tw = FloatTensor(nB, nA, nG, nG).fill_(0)
-    th = FloatTensor(nB, nA, nG, nG).fill_(0)
-    tcls = FloatTensor(nB, nA, nG, nG, nC).fill_(0)
+    obj_mask = ByteTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    noobj_mask = ByteTensor(nB, nA, nG[0], nG[1]).fill_(1)
+    class_mask = FloatTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    iou_scores = FloatTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    tx = FloatTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    ty = FloatTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    tw = FloatTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    th = FloatTensor(nB, nA, nG[0], nG[1]).fill_(0)
+    tcls = FloatTensor(nB, nA, nG[0], nG[1], nC).fill_(0)
 
+    
     # Convert to position relative to box
-    target_boxes = target[:, 2:6] * nG
+    target_boxes = target[:, 2:6] * 1
+    target_boxes[:,0]*=nG[1]
+    target_boxes[:,1]*=nG[0]
+    target_boxes[:,2]*=nG[1]
+    target_boxes[:,3]*=nG[0]
     gxy = target_boxes[:, :2]
     gwh = target_boxes[:, 2:]
     # Get anchors with best iou
@@ -297,6 +316,9 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
     gx, gy = gxy.t()
     gw, gh = gwh.t()
     gi, gj = gxy.long().t()
+    ###############
+    
+    ###############
     # Set masks
     obj_mask[b, best_n, gj, gi] = 1
     noobj_mask[b, best_n, gj, gi] = 0
@@ -314,6 +336,7 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres):
     # One-hot encoding of label
     tcls[b, best_n, gj, gi, target_labels] = 1
     # Compute label correctness and iou at best anchor
+    #import pdb;pdb.set_trace()
     class_mask[b, best_n, gj, gi] = (pred_cls[b, best_n, gj, gi].argmax(-1) == target_labels).float()
     iou_scores[b, best_n, gj, gi] = bbox_iou(pred_boxes[b, best_n, gj, gi], target_boxes, x1y1x2y2=False)
 
