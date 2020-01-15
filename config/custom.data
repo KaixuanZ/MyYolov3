@@ -1,4 +1,4 @@
-classes= 1
-train=data/custom/train.txt
-valid=data/custom/valid.txt
-names=data/custom/classes.names
+classes= 16
+train=../results/personnel-records/1960/object_detection/train.txt
+valid=../results/personnel-records/1960/object_detection/valid.txt
+names=../results/personnel-records/1960/object_detection/classes.names
