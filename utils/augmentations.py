@@ -39,26 +39,28 @@ def rotate(img, targets, theta):
         rotated_img = np.expand_dims(rotated_img,axis=2)
     r_h, r_w = rotated_img.shape[:2]
 
+    if targets.nelement():
     # rotate the targets
-    t_x, t_y = targets[:,2].numpy(), targets[:,3].numpy()
-    t_w, t_h = targets[:,4], targets[:,5]
-    # rotate xy
-    xy = PtsOnDstImg(np.column_stack((t_x * w,t_y * h)), rot_mat)
+        t_x, t_y = targets[:,2].numpy(), targets[:,3].numpy()
+        t_w, t_h = targets[:,4], targets[:,5]
+        # rotate xy
+        xy = PtsOnDstImg(np.column_stack((t_x * w,t_y * h)), rot_mat)
 
-    #new x,y
-    rotated_targets = targets.clone()
-    rotated_targets[:, 2:4] = torch.from_numpy(xy)
-    rotated_targets[:, 2] /= r_w
-    rotated_targets[:, 3] /= r_h
-    # new w,h
-    rotated_targets[:, 4] = (t_h * h * abs_sin + t_w * w * abs_cos) /r_w
-    rotated_targets[:, 5] = (t_h * h * abs_cos + t_w * w * abs_sin) /r_h
+        #new x,y
+        rotated_targets = targets.clone()
+        rotated_targets[:, 2:4] = torch.from_numpy(xy)
+        rotated_targets[:, 2] /= r_w
+        rotated_targets[:, 3] /= r_h
+        # new w,h
+        rotated_targets[:, 4] = (t_h * h * abs_sin + t_w * w * abs_cos) /r_w
+        rotated_targets[:, 5] = (t_h * h * abs_cos + t_w * w * abs_sin) /r_h
 
-    #viz
-    #plot_bbox(img, targets, 'tmp1')
-    #plot_bbox(rotated_img, rotated_targets, 'tmp2')
+        #viz
+        #plot_bbox(img, targets, 'tmp1')
+        #plot_bbox(rotated_img, rotated_targets, 'tmp2')
 
-    return rotated_img, rotated_targets
+        return rotated_img, rotated_targets
+    return rotated_img, targets
 
 def perspective(img, targets, t):
     '''
@@ -84,21 +86,23 @@ def perspective(img, targets, t):
     if len(warped_img.shape)<3:
         warped_img = np.expand_dims(warped_img,axis=2)
 
-    # warp the targets
-    t_x, t_y = targets[:, 2].numpy(), targets[:, 3].numpy()
-    t_h = targets[:, 5] * (1 +  t)
-    # warp xy
-    xy = PtsOnDstImg(np.column_stack((t_x * w, t_y * h)), M)
+    if targets.nelement():
+        # warp the targets
+        t_x, t_y = targets[:, 2].numpy(), targets[:, 3].numpy()
+        t_h = targets[:, 5] * (1 +  t)
+        # warp xy
+        xy = PtsOnDstImg(np.column_stack((t_x * w, t_y * h)), M)
 
-    #new x,y,h
-    warped_targets = targets.clone()
-    warped_targets[:, 2:4] = torch.from_numpy(xy)
-    warped_targets[:, 2] /= p_w
-    warped_targets[:, 3] /= p_h
-    warped_targets[:, 5] = t_h
+        #new x,y,h
+        warped_targets = targets.clone()
+        warped_targets[:, 2:4] = torch.from_numpy(xy)
+        warped_targets[:, 2] /= p_w
+        warped_targets[:, 3] /= p_h
+        warped_targets[:, 5] = t_h
 
-    # viz
-    #plot_bbox(img, targets, 'tmp1')
-    #plot_bbox(warped_img, warped_targets, 'tmp2')
+        # viz
+        #plot_bbox(img, targets, 'tmp1')
+        #plot_bbox(warped_img, warped_targets, 'tmp2')
 
-    return warped_img, warped_targets
+        return warped_img, warped_targets
+    return warped_img, targets

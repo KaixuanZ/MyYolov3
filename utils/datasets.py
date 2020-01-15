@@ -121,12 +121,13 @@ class ListDataset(Dataset):
                 # random small perspective transform
                 t = 0.2*(np.random.random()-0.5)
                 img, targets = perspective(img.permute(1, 2, 0).numpy(), targets, t)
+                img = transforms.ToTensor()(img)
             elif  p <= 0.66:
                 # random rotation (small degree)
                 theta = 5 * (np.random.random()-0.5)
                 img, targets = rotate(img.permute(1,2,0).numpy(), targets, theta)
+                img = transforms.ToTensor()(img)
             # add noise
-            img = transforms.ToTensor()(img)
             img += Variable(img.data.new(img.size()).normal_(0, 0.01))
         img = resize(img, self.img_size)
         #plot_bbox(img.permute(1, 2, 0).numpy(), targets, 'tmp')
