@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_interval", type=int, default=5, help="interval between saving model weights")
     parser.add_argument("--evaluation_interval", type=int, default=5, help="interval evaluations on validation set")
     parser.add_argument("--compute_map", default=False, help="if True computes mAP every tenth batch")
-    parser.add_argument("--multiscale_training", default=True, help="allow for multi-scale training")
+    parser.add_argument("--multiscale_training", default=False, help="allow for multi-scale training")
     parser.add_argument("--checkpoint_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint", help="path to save checkpoints")
     opt = parser.parse_args()
     print(opt)
