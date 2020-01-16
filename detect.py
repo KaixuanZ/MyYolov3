@@ -25,12 +25,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_folder", type=str, default="../results/personnel-records/1960/object_detection/images", help="path to dataset")
     parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint/yolov3_ckpt_95.pth", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint/yolov3_ckpt_120.pth", help="path to weights file")
     parser.add_argument("--class_path", type=str, default="../results/personnel-records/1960/object_detection/classes.names", help="path to class label file")
     parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--nms_thres", type=float, default=0.1, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
+    parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=(1920,256), help="size of each image dimension")
     parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
     opt = parser.parse_args()
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             detections = model(input_imgs)
             detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
-        
+
         print(input_imgs.shape)
         # Log progress
         current_time = time.time()
