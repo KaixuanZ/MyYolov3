@@ -1,4 +1,5 @@
 classes= 16
 train=../results/personnel-records/1960/object_detection/train.txt
 valid=../results/personnel-records/1960/object_detection/valid.txt
+test=../results/personnel-records/1960/object_detection/test.txt
 names=../results/personnel-records/1960/object_detection/classes.names
