@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_folder", type=str, default="../results/personnel-records/1960/object_detection/images", help="path to dataset")
     parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint/yolov3_ckpt_150.pth", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../results/personnel-records/1960/object_detection/checkpoint/yolov3_ckpt_200.pth", help="path to weights file")
     parser.add_argument("--class_path", type=str, default="../results/personnel-records/1960/object_detection/classes.names", help="path to class label file")
     parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.1, help="iou thresshold for non-maximum suppression")
@@ -78,7 +78,6 @@ if __name__ == "__main__":
             detections = model(input_imgs)
             detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
 
-        print(input_imgs.shape)
         # Log progress
         current_time = time.time()
         inference_time = datetime.timedelta(seconds=current_time - prev_time)

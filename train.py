@@ -26,7 +26,7 @@ import torch.optim as optim
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=151, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=201, help="number of epochs")
     parser.add_argument("--batch_size", type=int, default=7, help="size of each image batch")
     parser.add_argument("--gradient_accumulations", type=int, default=2, help="number of gradient accums before step")
     parser.add_argument("--model_def", type=str, default="config/yolov3-custom.cfg", help="path to model definition file")
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                 path=valid_path,
                 iou_thres=0.5,
                 conf_thres=0.5,
-                nms_thres=0.5,
+                nms_thres=0.1,
                 img_size=opt.img_size,
                 batch_size=8,
             )
