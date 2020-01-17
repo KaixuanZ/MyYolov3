@@ -117,21 +117,23 @@ class ListDataset(Dataset):
         if self.augment:
             # we can save data in this class but if the training data is too much we cannot remember them in memory
             p = np.random.random()
-            if p <= 0.33:
+            #import pdb;pdb.set_trace()
+            if p <= 0.4:
                 # random small perspective transform
-                t = 0.2*(np.random.random()-0.5)
+                t = 0.1*(np.random.random()-0.5)
+            #    print(img.shape)
                 img, targets = perspective(img.permute(1, 2, 0).numpy(), targets, t)
                 img = transforms.ToTensor()(img)
-            elif  p <= 0.66:
+            #    print(img.shape)
+            elif  p <= 0.8:
                 # random rotation (small degree)
                 theta = 5 * (np.random.random()-0.5)
                 img, targets = rotate(img.permute(1,2,0).numpy(), targets, theta)
                 img = transforms.ToTensor()(img)
             # add noise
-            img += Variable(img.data.new(img.size()).normal_(0, 0.01))
+            img += Variable(img.data.new(img.size()).normal_(0, 0.003))
         img = resize(img, self.img_size)
         #plot_bbox(img.permute(1, 2, 0).numpy(), targets, 'tmp')
-        #import pdb;pdb.set_trace()
         return img_path, img, targets
 
     def collate_fn(self, batch):
