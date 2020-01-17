@@ -120,12 +120,10 @@ class ListDataset(Dataset):
             #import pdb;pdb.set_trace()
             if p <= 0.4:
                 # random small perspective transform
-                t = 0.1*(np.random.random()-0.5)
-            #    print(img.shape)
+                t = 0.06*(np.random.random()-0.5)
                 img, targets = perspective(img.permute(1, 2, 0).numpy(), targets, t)
                 img = transforms.ToTensor()(img)
-            #    print(img.shape)
-            elif  p <= 0.8:
+            elif  p <= 0.4:
                 # random rotation (small degree)
                 theta = 5 * (np.random.random()-0.5)
                 img, targets = rotate(img.permute(1,2,0).numpy(), targets, theta)
